@@ -36,16 +36,15 @@ def register():
     password = data.get('password')
 
     if not name or not email or not password:
-        return jsonify({"message": "Missing fields"}), 400
-
+        return jsonify({"message": "Missing fields"}),
     if User.query.filter_by(email=email).first():
-        return jsonify({"message": "Email already registered"}), 400
+        return jsonify({"message": "Email already registered"}),
 
     new_user = User(name=name, email=email, password=password)
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"message": "User registered successfully"}), 201
+    return jsonify({"message": "User registered successfully"}), 
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -57,14 +56,14 @@ def login():
 
     if user and user.check_password(password):
         session['email'] = user.email
-        return jsonify({"message": "Login successful"}), 200
+        return jsonify({"message": "Login successful"}), 
     else:
-        return jsonify({"message": "Invalid email or password"}), 400
+        return jsonify({"message": "Invalid email or password"}), 
 
 @app.route('/logout', methods=['POST'])
 def logout():
     session.pop('email', None)
-    return jsonify({"message": "Logout successful"}), 200
+    return jsonify({"message": "Logout successful"}),
 
 if __name__ == '__main__':
     app.run(debug=True)
