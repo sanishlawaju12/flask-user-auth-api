@@ -1,9 +1,7 @@
-from flask import Flask, request, render_template, redirect, session
+from flask import Flask, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_mysqldb import MySQL
 from datetime import datetime
 import bcrypt
-
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/user'
@@ -15,56 +13,56 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(100))
-    date_created = db.Column(db.DateTime, default= datetime.utcnow)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def __init__(self,email,password):
+    def __init__(self, name, email, password):
+        self.name = name
         self.email = email
-        self.password =  bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-    def check_password(self,password):
+    def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
-    
+
 with app.app_context():
     db.create_all()
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['POST'])
 def register():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
 
-        new_user = User(name=name,email=email,password=password)
-        db.session.add(new_user)
-        db.session.commit()
-        return redirect('/login')
-    
-    return render_template('register.html')
+    if not name or not email or not password:
+        return jsonify({"message": "Missing fields"}), 400
 
-@app.route('/login', methods=['GET', 'POST'])
+    if User.query.filter_by(email=email).first():
+        return jsonify({"message": "Email already registered"}), 400
+
+    new_user = User(name=name, email=email, password=password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
 
-        user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email).first()
 
-        if user and user.check_password(password):
-            session['email']= user.email
-            return redirect('/')
-        else:
-            return render_template('login.html', error='Invalid email')
-    
-    return render_template('login.html')
+    if user and user.check_password(password):
+        session['email'] = user.email
+        return jsonify({"message": "Login successful"}), 200
+    else:
+        return jsonify({"message": "Invalid email or password"}), 400
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('email',None)
-    return redirect('/login')
-        
+    session.pop('email', None)
+    return jsonify({"message": "Logout successful"}), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
